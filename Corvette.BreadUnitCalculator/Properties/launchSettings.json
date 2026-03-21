@@ -17,8 +17,10 @@
       "launchBrowser": true,
       "inspectUri": "{wsProtocol}://{url.hostname}:{url.port}/_framework/debug/ws-proxy?browser={browserInspectUri}",
       "applicationUrl": "https://localhost:7094;http://localhost:5167",
+      "launchUrl": "bread-unit-calculator",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_PATHBASE": "/bread-unit-calculator"
       }
     }
   }
