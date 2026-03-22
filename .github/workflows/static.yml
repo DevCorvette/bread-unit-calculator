@@ -24,6 +24,11 @@ jobs:
         
     - name: Publish Blazor WebAssembly project
       run: dotnet publish -c Release -o release
+
+    - name: Remove integrity attributes from index.html
+      run: |
+        sed -i 's/ integrity="[^"]*"//g' release/wwwroot/index.html
+        sed -i 's/ crossorigin="[^"]*"//g' release/wwwroot/index.html
       
     - name: Copy index.html to 404.html for SPA routing
       run: cp release/wwwroot/index.html release/wwwroot/404.html
