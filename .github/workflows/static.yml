@@ -38,3 +38,6 @@ jobs:
       with:
         folder: release/wwwroot
         branch: gh-pages 
+
+    - name: Add .nojekyll file
+      run: touch release/wwwroot/.nojekyll    
