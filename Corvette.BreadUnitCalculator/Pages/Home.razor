@@ -15,7 +15,7 @@
                            min="0.5"
                            class="form-control form-control-lg" 
                            inputmode="decimal"
-                           @bind="_insulin"
+                           @bind="Insulin"
                            @bind:event="oninput"
                            @bind:after="UpdateTable" />
                 </div>
@@ -27,40 +27,53 @@
                            min="0.1"
                            class="form-control form-control-lg" 
                            inputmode="decimal"
-                           @bind="_breadUnits"
+                           @bind="BreadUnits"
                            @bind:event="oninput" 
                            @bind:after="UpdateTable" />
                 </div>
             </div>
 
-            @if (Coefficient > 0)
-            {
-                <div class="alert alert-secondary text-center">
-                    <strong>Коэффициент: </strong> @Coefficient?.ToString("F2") ХЕ за 1 ед. инсулина
-                </div>
-            }
-
             <!-- Таблица результатов -->
-            @if (_tableData.Count > 0)
+            @if (TableData.Count > 0)
             {
+                if (TableData[0].Insulin > Min)
+                {
+                    <div class="d-flex">
+                        <button class="btn btn-sm btn-outline-light border-0 w-100" @onclick="ExpandTableUp">
+                            <svg class="arrow-top" viewBox="0 0 5 9">
+                                <path d="M0.419,9.000 L0.003,8.606 L4.164,4.500 L0.003,0.394 L0.419,0.000 L4.997,4.500 L0.419,9.000 Z" />
+                            </svg>
+                        </button> 
+                    </div>
+                }
+                
                 <div class="table-responsive">
                     <table class="table table-bordered table-hover mt-3">
                         <thead class="table-light">
-                            <tr>
-                                <th class="text-center" style="width: 50%">Инсулин</th>
-                                <th class="text-center" style="width: 50%">ХE</th>
-                            </tr>
+                        <tr>
+                            <th class="text-center" style="width: 50%">Инсулин</th>
+                            <th class="text-center" style="width: 50%">ХE</th>
+                        </tr>
                         </thead>
                         <tbody>
-                            @foreach (var row in _tableData)
-                            {
-                                <tr class="@(row.Insulin == _insulin ? "table-secondary fw-bold" : "")">
-                                    <td class="text-center">@row.Insulin.ToString("F1")</td>
-                                    <td class="text-center">@row.BreadUnits.ToString("F1")</td>
-                                </tr>
-                            }
+                        @foreach (var row in TableData)
+                        {
+                            var isCurrentRow = Math.Abs(row.Insulin - Insulin.GetValueOrDefault()) < 0.01;
+                            <tr class="@(isCurrentRow ? "table-secondary fw-bold" : "")">
+                                <td class="text-center">@row.Insulin.ToString("F1")</td>
+                                <td class="text-center">@row.BreadUnits.ToString("F1")</td>
+                            </tr>
+                        }
                         </tbody>
                     </table>
+                </div>
+                
+                <div class="d-flex">
+                    <button class="btn btn-sm btn-outline-light border-0 w-100" @onclick="ExpandTableDown">
+                        <svg class="arrow-bottom" viewBox="0 0 5 9">
+                            <path d="M0.419,9.000 L0.003,8.606 L4.164,4.500 L0.003,0.394 L0.419,0.000 L4.997,4.500 L0.419,9.000 Z" />
+                        </svg>
+                    </button> 
                 </div>
             }
         </div>
@@ -68,12 +81,16 @@
 </div>
 
 @code {
-    private double? _insulin;    
-    private double? _breadUnits;      
-    private double? Coefficient => _breadUnits > 0 ? _insulin / _breadUnits : null;
+    
+    private double? Insulin { get; set; }
+    private double? BreadUnits { get; set;}      
+    private double? Coefficient => BreadUnits > 0 ? Insulin / BreadUnits : null;
+    
+    private const double Min  = 0.5;
+    private const double Step = 0.5;
 
     // Данные для таблицы
-    private List<TableRow> _tableData = [];
+    private List<TableRow> TableData { get; set; } = [];
 
     protected override void OnInitialized()
     {
@@ -82,45 +99,72 @@
 
     private void UpdateTable()
     {
-        var insulin = _insulin.GetValueOrDefault();
-        var breadUnits = _breadUnits.GetValueOrDefault();
+        var insulin = Insulin.GetValueOrDefault();
+        var breadUnits = BreadUnits.GetValueOrDefault();
         var coefficient = Coefficient.GetValueOrDefault();
         
         // Проверяем, что оба значения введены и положительные
         if (insulin <= 0 || breadUnits <= 0)
             return;
         
-        var step = 0.5;
-        var min = 0.5;
-
         var table = new List<TableRow>
         {
-            new TableRow { Insulin = insulin },
+            new TableRow(insulin, coefficient),
         };
+        
+        // добавляем по 3 строки вверх и вниз от введенного значения
+        for (var i = 1; i <= 3; i++)
+        {
+            var down = insulin - i * Step;
+            var up = insulin + i * Step;
+
+            if (down >= Min)
+                table.Add(new TableRow(down, coefficient));
+
+            table.Add(new TableRow(up, coefficient));
+        }
+    
+        TableData = table.OrderBy(x => x.Insulin).ToList();
+    }
+    
+    private void ExpandTableUp()
+    {
+        var coefficient = Coefficient.GetValueOrDefault();
+        if (coefficient <= 0) return;
+        if (TableData.Count < 1) return;
         
         for (var i = 1; i <= 3; i++)
         {
-            var down = insulin - i * step;
-            var up = insulin + i * step;
-            
-            if (down >= min)
-                table.Add(new TableRow{Insulin = down});
-            
-            table.Add(new TableRow{Insulin = up});
+            var down = TableData[0].Insulin - Step;
+            if (down >= Min)
+                TableData.Insert(0, new TableRow(down, coefficient));
         }
+    }
+
+    private void ExpandTableDown()
+    {
+        var coefficient = Coefficient.GetValueOrDefault();
+        if (coefficient <= 0) return;
+        if (TableData.Count < 1) return;
         
-        foreach (var row in table)
+        for (var i = 1; i <= 3; i++)
         {
-            row.BreadUnits = Math.Round(row.Insulin / coefficient, 1);
+            var up = TableData[^1].Insulin + Step;
+            TableData.Add(new TableRow(up, coefficient));
         }
-    
-        _tableData = table.OrderBy(x => x.Insulin).ToList();
     }
 
     // Класс для строки таблицы
     private class TableRow
     {
-        public double Insulin { get; set; }
-        public double BreadUnits { get; set; }
+        public double Insulin { get; }
+        public double BreadUnits { get; }
+
+        public TableRow(double insulin, double coefficient)
+        {
+            Insulin = insulin;
+            BreadUnits = Math.Round(insulin / coefficient, 1);
+        }
     }
+
 }
