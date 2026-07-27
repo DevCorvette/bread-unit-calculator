@@ -1,34 +1,36 @@
-﻿@page "/"
+@page "/"
 
 <div class="container mt-4">
     <div class="card shadow">
         <div class="card-header bg-secondary text-white">
             <h3 class="mb-0">Калькулятор ХЕ</h3>
         </div>
-        
+
         <div class="card-body">
             <div class="row g-3 mb-4">
                 <div class="col-6">
-                    <label class="form-label fw-bold">Инсулин</label>
+                    <label class="form-label fw-bold" for="insulin">Инсулин</label>
                     <input type="number"
+                           id="insulin"
                            step="0.5"
                            min="0.5"
-                           class="form-control form-control" 
+                           class="form-control"
                            inputmode="decimal"
                            @bind="Insulin"
                            @bind:event="oninput"
                            @bind:after="UpdateTable" />
                 </div>
-    
+
                 <div class="col-6">
-                    <label class="form-label fw-bold">ХЕ</label>
-                    <input type="number" 
+                    <label class="form-label fw-bold" for="bread-units">ХЕ</label>
+                    <input type="number"
+                           id="bread-units"
                            step="0.1"
                            min="0.1"
-                           class="form-control form-control" 
+                           class="form-control"
                            inputmode="decimal"
                            @bind="BreadUnits"
-                           @bind:event="oninput" 
+                           @bind:event="oninput"
                            @bind:after="UpdateTable" />
                 </div>
             </div>
@@ -43,16 +45,20 @@
                             <svg class="arrow-top" viewBox="0 0 5 9">
                                 <path d="M0.419,9.000 L0.003,8.606 L4.164,4.500 L0.003,0.394 L0.419,0.000 L4.997,4.500 L0.419,9.000 Z" />
                             </svg>
-                        </button> 
+                        </button>
                     </div>
                 }
-                
+
                 <div class="table-responsive">
                     <table class="table table-sm table-bordered table-hover mt-2 mb-2">
                         <thead class="table-light">
                         <tr>
-                            <th class="text-center" style="width: 50%">Инсулин</th>
-                            <th class="text-center" style="width: 50%">ХE</th>
+                            <th class="text-center" style="width: @(ShowRemainder ? "34%" : "50%")">Инсулин</th>
+                            <th class="text-center" style="width: @(ShowRemainder ? "33%" : "50%")">ХЕ</th>
+                            @if (ShowRemainder)
+                            {
+                                <th class="text-center" style="width: 33%">Остаток</th>
+                            }
                         </tr>
                         </thead>
                         <tbody>
@@ -62,18 +68,64 @@
                             <tr class="@(isCurrentRow ? "table-secondary fw-bold" : "")">
                                 <td class="text-center">@row.Insulin.ToString("F1")</td>
                                 <td class="text-center">@row.BreadUnits.ToString("F1")</td>
+                                @if (ShowRemainder)
+                                {
+                                    var remainder = Math.Round(row.BreadUnits - AddedBreadUnits, 1);
+                                    <td class="text-center @(remainder < 0 ? "remainder-negative" : "")">@remainder.ToString("F1")</td>
+                                }
                             </tr>
                         }
                         </tbody>
                     </table>
                 </div>
-                
+
                 <div class="d-flex">
                     <button class="btn btn-sm btn-outline-light border-0 w-100" @onclick="ExpandTableDown">
                         <svg class="arrow-bottom" viewBox="0 0 5 9">
                             <path d="M0.419,9.000 L0.003,8.606 L4.164,4.500 L0.003,0.394 L0.419,0.000 L4.997,4.500 L0.419,9.000 Z" />
                         </svg>
-                    </button> 
+                    </button>
+                </div>
+
+                <!-- Набор блюд приёма пищи -->
+                <div class="mt-2">
+                    <label class="form-label fw-bold" for="meal">Набрано @AddedBreadUnits.ToString("0.#") ХЕ</label>
+
+                    @if (Meals.Count > 0)
+                    {
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                            @for (var i = 0; i < Meals.Count; i++)
+                            {
+                                var index = i;
+                                <button type="button" class="meal-chip" @onclick="() => RemoveMeal(index)">
+                                    @Meals[index].ToString("F1")
+                                    <span class="meal-chip-remove">×</span>
+                                </button>
+                            }
+                            <button type="button" class="btn btn-sm btn-link p-0 ms-auto text-decoration-none" @onclick="ResetMeals">
+                                Сбросить
+                            </button>
+                        </div>
+                    }
+
+                    <div class="input-group">
+                        <input type="number"
+                               id="meal"
+                               step="0.1"
+                               min="0.1"
+                               class="form-control"
+                               inputmode="decimal"
+                               @bind="MealInput"
+                               @bind:event="oninput"
+                               @onkeydown="OnMealInputKeyDown" />
+                        <button type="button"
+                                class="btn btn-primary meal-add px-4 fw-bold"
+                                disabled="@(CurrentMeal <= 0)"
+                                @onpointerdown:preventDefault
+                                @onclick="AddMeal">
+                            +
+                        </button>
+                    </div>
                 </div>
             }
         </div>
@@ -81,16 +133,27 @@
 </div>
 
 @code {
-    
+
     private double? Insulin { get; set; }
-    private double? BreadUnits { get; set;}      
+    private double? BreadUnits { get; set; }
     private double? Coefficient => BreadUnits > 0 ? Insulin / BreadUnits : null;
-    
+
     private const double Min  = 0.5;
     private const double Step = 0.5;
 
     // Данные для таблицы
     private List<TableRow> TableData { get; set; } = [];
+
+    // Подтверждённые кнопкой «+» блюда и то, что набирается в поле прямо сейчас
+    private List<double> Meals { get; } = [];
+    private double? MealInput { get; set; }
+
+    // Набранное считаем только по подтверждённым блюдам: пока не нажата «+», таблица и заголовок не меняются
+    private double CurrentMeal => MealInput.GetValueOrDefault();
+    private double AddedBreadUnits => Math.Round(Meals.Sum(), 1);
+
+    // Колонку остатка показываем только по подтверждённым блюдам, чтобы она не мигала при наборе
+    private bool ShowRemainder => Meals.Count > 0;
 
     protected override void OnInitialized()
     {
@@ -102,16 +165,16 @@
         var insulin = Insulin.GetValueOrDefault();
         var breadUnits = BreadUnits.GetValueOrDefault();
         var coefficient = Coefficient.GetValueOrDefault();
-        
+
         // Проверяем, что оба значения введены и положительные
         if (insulin <= 0 || breadUnits <= 0)
             return;
-        
+
         var table = new List<TableRow>
         {
             new TableRow(insulin, coefficient),
         };
-        
+
         // добавляем по 3 строки вверх и вниз от введенного значения
         for (var i = 1; i <= 3; i++)
         {
@@ -123,16 +186,16 @@
 
             table.Add(new TableRow(up, coefficient));
         }
-    
+
         TableData = table.OrderBy(x => x.Insulin).ToList();
     }
-    
+
     private void ExpandTableUp()
     {
         var coefficient = Coefficient.GetValueOrDefault();
         if (coefficient <= 0) return;
         if (TableData.Count < 1) return;
-        
+
         for (var i = 1; i <= 3; i++)
         {
             var down = TableData[0].Insulin - Step;
@@ -146,12 +209,39 @@
         var coefficient = Coefficient.GetValueOrDefault();
         if (coefficient <= 0) return;
         if (TableData.Count < 1) return;
-        
+
         for (var i = 1; i <= 3; i++)
         {
             var up = TableData[^1].Insulin + Step;
             TableData.Add(new TableRow(up, coefficient));
         }
+    }
+
+    private void AddMeal()
+    {
+        if (CurrentMeal <= 0)
+            return;
+
+        Meals.Add(CurrentMeal);
+        MealInput = null;
+    }
+
+    private void OnMealInputKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key is "Enter" or "NumpadEnter")
+            AddMeal();
+    }
+
+    private void RemoveMeal(int index)
+    {
+        if (index >= 0 && index < Meals.Count)
+            Meals.RemoveAt(index);
+    }
+
+    private void ResetMeals()
+    {
+        Meals.Clear();
+        MealInput = null;
     }
 
     // Класс для строки таблицы
@@ -166,5 +256,4 @@
             BreadUnits = Math.Round(insulin / coefficient, 1);
         }
     }
-
 }
