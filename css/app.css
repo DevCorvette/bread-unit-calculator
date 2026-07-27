@@ -179,6 +179,11 @@ code {
     background-color: #fffbf8 !important;
     color: #2c3e50 !important;
 }
+
+/* Отрицательный остаток — перебор по ХЕ */
+.table tbody td.remainder-negative {
+    color: #e74c3c !important;
+}
 .table-hover tbody tr:hover {
     background-color: #fef5ed !important;
 }
@@ -205,6 +210,51 @@ tr.table-secondary td {
 }
 .table>:not(caption)>*>* {
     box-shadow: none;
+}
+
+/* Съеденные ХЕ: кнопка добавления, чипы блюд, итог */
+.btn.meal-add:hover {
+    background-color: #d35400;
+}
+
+.btn.meal-add:active {
+    background-color: #ba4a00 !important;
+}
+
+/* Bootstrap красит disabled-кнопку своим синим — возвращаем оранжевую палитру */
+.btn.meal-add:disabled,
+.btn.meal-add.disabled {
+    background-color: #f7c9a3;
+    border-color: #f7c9a3;
+    color: #fff;
+    opacity: 1;
+}
+
+.meal-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.75rem;
+    border: 1px solid #fadbc2;
+    border-radius: 999px;
+    background-color: #fef0e0;
+    color: #d35400;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.meal-chip:hover {
+    background-color: #fde8d6;
+}
+
+.meal-chip:active {
+    background-color: #fadbc2;
+}
+
+.meal-chip-remove {
+    font-size: 1.1rem;
+    line-height: 1;
+    color: #e67e22;
 }
 
 /* Стрелки таблицы вверх / вниз */
